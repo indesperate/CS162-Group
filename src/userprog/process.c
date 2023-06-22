@@ -69,6 +69,23 @@ pid_t process_execute(const char* file_name) {
   return tid;
 }
 
+/* find the number of arguments*/
+static int get_argc(char* args) {
+  int argc = 0;
+  bool is_arg = false;
+  for (int i = 0; args[i] != '\0'; i++) {
+    if (args[i] != ' ') {
+      if (!is_arg) {
+        argc += 1;
+        is_arg = true;
+      }
+    } else {
+      is_arg = false;
+    }
+  }
+  return argc;
+}
+
 /* A thread function that loads a user process and starts it
    running. */
 static void start_process(void* file_name_) {
@@ -93,6 +110,11 @@ static void start_process(void* file_name_) {
     strlcpy(t->pcb->process_name, t->name, sizeof t->name);
   }
 
+  // Get the program name
+  char *token, *save_ptr;
+  int argc = get_argc(file_name);
+  file_name = strtok_r(file_name, " ", &save_ptr);
+
   /* Initialize interrupt frame and load executable. */
   if (success) {
     memset(&if_, 0, sizeof if_);
@@ -100,6 +122,52 @@ static void start_process(void* file_name_) {
     if_.cs = SEL_UCSEG;
     if_.eflags = FLAG_IF | FLAG_MBS;
     success = load(file_name, &if_.eip, &if_.esp);
+  }
+
+  // get argc and a space storing the argv[i]
+  char** argv_ptr_user = malloc(sizeof(char*) * argc);
+  success = argv_ptr_user != NULL;
+  if (success) {
+    // store the program name at the top, 4 align
+    int argv_len = (strlen(file_name) + 4) & ~3;
+    if_.esp -= argv_len;
+    argv_ptr_user[0] = if_.esp;
+    strlcpy(if_.esp, file_name, argv_len);
+
+    // store the rest argv at below the program name, 4 align
+    for (int i = 1; i < argc; i++) {
+      token = strtok_r(NULL, " ", &save_ptr);
+      argv_len = (strlen(token) + 4) & ~3;
+      if_.esp -= argv_len;
+      argv_ptr_user[i] = if_.esp;
+      strlcpy(if_.esp, token, argv_len);
+    }
+
+    // NULL pad to void argv out of range
+    if_.esp -= 4;
+
+    // place for char **argv array
+    if_.esp -= sizeof(char*) * argc;
+    char** argv = if_.esp;
+    for (int i = 0; i < argc; i++) {
+      argv[i] = argv_ptr_user[i];
+    }
+
+    // free memory
+    free(argv_ptr_user);
+
+    // place for argc and argv pointer
+    if_.esp -= 8;
+
+    // 16 align
+    if_.esp = (void*)((int)if_.esp & ~15);
+
+    // place for callback pointer
+    if_.esp -= 4;
+
+    // store
+    *((char***)if_.esp + 2) = argv;
+    *((int*)if_.esp + 1) = argc;
   }
 
   /* Handle failure with succesful PCB malloc. Must free the PCB */
