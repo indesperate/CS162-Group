@@ -31,6 +31,10 @@ static void syscall_handler(struct intr_frame* f) {
       int status = args[1];
       sys_exit(status);
     } break;
+    case SYS_OPEN: {
+      const char* file = (void*)args[1];
+      f->eax = sys_open(file);
+    } break;
     case SYS_WRITE: {
       int fd = args[1];
       const void* buffer = (void*)args[2];

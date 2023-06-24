@@ -7,6 +7,8 @@ void sys_halt(void);
 
 void sys_exit(int status);
 
+int sys_open(const char *file);
+
 int sys_write(int fd, const void* buffer, unsigned size);
 
 int sys_practice(int i);
