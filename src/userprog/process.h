@@ -8,6 +8,7 @@
 // These defines will be used in Project 2: Multithreading
 #define MAX_STACK_PAGES (1 << 11)
 #define MAX_THREADS 127
+#define MAX_FILES 64
 
 /* PIDs and TIDs are the same type. PID should be
    the TID of the main thread of the process */
@@ -16,6 +17,13 @@ typedef tid_t pid_t;
 /* Thread functions (Project 2: Multithreading) */
 typedef void (*pthread_fun)(void*);
 typedef void (*stub_fun)(pthread_fun, void*);
+
+/* File descriptor table*/
+struct fd_table {
+  int num;   /* number of file descriptors*/
+  int index; /* index of next empty array node*/
+  struct file* fd_elem[MAX_FILES]; /* file descriptor array*/
+};
 
 /* The process control block for a given process. Since
    there can be multiple threads per process, we need a separate
@@ -27,6 +35,7 @@ struct process {
   uint32_t* pagedir;          /* Page directory. */
   char process_name[16];      /* Name of the main thread */
   struct thread* main_thread; /* Pointer to main thread */
+  struct fd_table fd_t;       /* File descriptor table*/
 };
 
 void userprog_init(void);

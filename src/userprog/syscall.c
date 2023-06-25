@@ -41,6 +41,10 @@ static void syscall_handler(struct intr_frame* f) {
       unsigned int size = args[3];
       f->eax = sys_write(fd, buffer, size);
     } break;
+    case SYS_CLOSE: {
+      int fd = args[1];
+      sys_close(fd);
+    }
     case SYS_PRACTICE: {
       int i = args[1];
       f->eax = sys_practice(i);

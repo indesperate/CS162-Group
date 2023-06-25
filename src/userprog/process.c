@@ -111,6 +111,7 @@ static void start_process(void* file_name_) {
 
     // Continue initializing the PCB as normal
     t->pcb->main_thread = t;
+    memset(&t->pcb->fd_t, 0, sizeof(struct fd_table));
     strlcpy(t->pcb->process_name, t->name, sizeof t->name);
   }
 
