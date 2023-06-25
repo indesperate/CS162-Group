@@ -31,9 +31,28 @@ static void syscall_handler(struct intr_frame* f) {
       int status = args[1];
       sys_exit(status);
     } break;
+    case SYS_CREATE: {
+      const char* file = (void*)args[1];
+      unsigned initial_size = args[2];
+      f->eax = sys_create(file, initial_size);
+    } break;
+    case SYS_REMOVE: {
+      const char* file = (void*)args[1];
+      f->eax = sys_remove(file);
+    } break;
     case SYS_OPEN: {
       const char* file = (void*)args[1];
       f->eax = sys_open(file);
+    } break;
+    case SYS_FILESIZE: {
+      int fd = args[1];
+      f->eax = sys_filesize(fd);
+    } break;
+    case SYS_READ: {
+      int fd = args[1];
+      void *buffer = (void*)args[2];
+      unsigned size = args[3];
+      f->eax = sys_read(fd, buffer, size);
     } break;
     case SYS_WRITE: {
       int fd = args[1];
@@ -44,7 +63,7 @@ static void syscall_handler(struct intr_frame* f) {
     case SYS_CLOSE: {
       int fd = args[1];
       sys_close(fd);
-    }
+    } break;
     case SYS_PRACTICE: {
       int i = args[1];
       f->eax = sys_practice(i);

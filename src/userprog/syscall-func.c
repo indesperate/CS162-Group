@@ -7,6 +7,15 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "devices/shutdown.h"
+#include "devices/input.h"
+
+static void check_fd(int fd) {
+  int index = fd - 2;
+  struct fd_table* fd_t = &thread_current()->pcb->fd_t;
+  if (index < 0 || index >= MAX_FILES || !fd_t->fd_elem[index]) {
+    sys_exit(-1);
+  }
+}
 
 void sys_halt(void) { shutdown_power_off(); }
 
@@ -23,6 +32,16 @@ void sys_exit(int status) {
   }
   printf("%s: exit(%d)\n", thread_current()->pcb->process_name, status);
   process_exit();
+}
+
+bool sys_create(const char* input_file, unsigned initial_size) {
+  check_user_ptr(input_file);
+  return filesys_create(input_file, initial_size);
+}
+
+bool sys_remove(const char* input_file) {
+  check_user_ptr(input_file);
+  return filesys_remove(input_file);
 }
 
 int sys_open(const char* input_file) {
@@ -49,22 +68,45 @@ int sys_open(const char* input_file) {
   return fd + 2;
 }
 
+int sys_filesize(int fd) {
+  check_fd(fd);
+  int index = fd - 2;
+  struct file* file = thread_current()->pcb->fd_t.fd_elem[index];
+  return file_length(file);
+}
+
+int sys_read(int fd, void* buffer, unsigned size) {
+  check_user_ptr(buffer);
+  if (fd == STDIN_FILENO) {
+    for (unsigned i = 0; i < size; i++) {
+      ((char*)buffer)[i] = input_getc();
+    }
+    return size;
+  }
+  check_fd(fd);
+  int index = fd - 2;
+  struct file* file = thread_current()->pcb->fd_t.fd_elem[index];
+  return file_read(file, buffer, size);
+}
+
 int sys_write(int fd, const void* buffer, unsigned size) {
   check_user_ptr(buffer);
-  if (fd == 1) {
+  if (fd == STDOUT_FILENO) {
     putbuf(buffer, size);
+    return size;
   }
-  return size;
+  check_fd(fd);
+  int index = fd - 2;
+  struct file* file = thread_current()->pcb->fd_t.fd_elem[index];
+  return file_write(file, buffer, size);
 }
 
 void sys_close(int fd) {
-  /* restore index */
+  check_fd(fd);
   int index = fd - 2;
   struct fd_table* fd_t = &thread_current()->pcb->fd_t;
-  if (index < 0 || index >= MAX_FILES || !fd_t->fd_elem[index]) {
-    sys_exit(-1);
-  }
   file_close(fd_t->fd_elem[index]);
+  // TODO: warning: statement with no effect [-Wunused-value] ?
   fd_t->fd_elem[index] = NULL;
   fd_t->num--;
 }
